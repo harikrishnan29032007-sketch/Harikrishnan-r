@@ -1,2 +1,0 @@
-# Harikrishnan-r
-Student
