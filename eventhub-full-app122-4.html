@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVENTHUB — App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D0817; --ink2:#160D26; --ink3:#1F1332;
+    --magenta:#FF2E7E; --cyan:#2BE8E0; --amber:#FFB84D;
+    --paper:#F3EEFA; --paper-dim:#B7A9CC; --line:rgba(243,238,250,0.12);
+    --error:#FF6B6B; --good:#3DDC97;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--ink); color:var(--paper); font-family:'Space Grotesk',sans-serif;
+    min-height:100vh;
+  }
+  .hidden{ display:none !important; }
+  ::-webkit-scrollbar{ width:0; height:0; }
+
+  /* ---------- AUTH (Module 1) ---------- */
+  #authScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; position:relative; overflow:hidden;
+  }
+  #authScreen::before{
+    content:''; position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(90% 60% at 15% -10%, rgba(255,46,126,0.30), transparent 60%),
+      radial-gradient(80% 55% at 95% 100%, rgba(43,232,224,0.22), transparent 55%);
+  }
+  .auth-wrap{ position:relative; z-index:2; width:100%; max-width:400px; }
+  .logo{ font-family:'Anton',sans-serif; letter-spacing:1px; font-size:22px; text-align:center; margin-bottom:6px;}
+  .logo span{ color:var(--magenta); }
+  .tagline{ text-align:center; font-size:12px; color:var(--paper-dim); text-transform:uppercase; letter-spacing:2px; margin-bottom:28px;}
+  .panel{ background:var(--ink2); border:1px solid var(--line); border-radius:18px; padding:28px 24px; position:relative;}
+  .panel h1{ font-family:'Anton'; font-size:24px; text-transform:uppercase; margin-bottom:6px;}
+  .panel p.sub{ color:var(--paper-dim); font-size:13px; margin-bottom:24px;}
+  .tabs{ display:flex; gap:8px; margin-bottom:22px;}
+  .tab{ flex:1; text-align:center; padding:10px; border-radius:10px; font-size:13px; font-weight:600; color:var(--paper-dim); cursor:pointer; border:1px solid var(--line);}
+  .tab.active{ background:var(--paper); color:var(--ink); border-color:var(--paper);}
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:12px; color:var(--paper-dim); margin-bottom:7px; text-transform:uppercase; letter-spacing:1px;}
+  .field input, .field select{ width:100%; background:var(--ink); border:1px solid var(--line); border-radius:10px; padding:13px 14px; color:var(--paper); font-family:'Space Grotesk'; font-size:14px; outline:none;}
+  .field input:focus, .field select:focus{ border-color:var(--cyan); }
+  .field.has-error input{ border-color:var(--error); }
+  .field .err-msg{ font-size:11px; color:var(--error); margin-top:6px; display:none;}
+  .field.has-error .err-msg{ display:block; }
+  .row-between{ display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; font-size:12px;}
+  .remember{ display:flex; align-items:center; gap:7px; color:var(--paper-dim);}
+  .forgot{ color:var(--cyan); background:none; border:none; font-family:inherit; cursor:pointer; font-size:12px;}
+  .btn{ font-family:'Space Grotesk'; font-weight:700; font-size:14px; padding:13px 18px; border-radius:10px; border:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px;}
+  .btn-primary{ background:var(--magenta); color:var(--ink); width:100%;}
+  .btn-primary:hover{ background:#ff5391; }
+  .btn-primary:disabled{ opacity:0.6; cursor:not-allowed;}
+  .spinner{ width:14px; height:14px; border-radius:50%; border:2px solid rgba(13,8,23,0.3); border-top-color:var(--ink); animation:spin .7s linear infinite; display:none;}
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+  .divider{ display:flex; align-items:center; gap:12px; margin:22px 0; color:var(--paper-dim); font-size:11px; text-transform:uppercase; letter-spacing:1px;}
+  .divider::before,.divider::after{ content:''; flex:1; height:1px; background:var(--line);}
+  .demo-hint{ font-size:11px; color:var(--paper-dim); text-align:center; margin-top:18px; line-height:1.6;}
+  .demo-hint b{ color:var(--cyan); }
+  .footer-note{ text-align:center; margin-top:22px; font-size:13px; color:var(--paper-dim);}
+  .footer-note button{ color:var(--paper); font-weight:600; background:none; border:none; cursor:pointer; font-family:inherit; font-size:13px; text-decoration:underline;}
+  .stub-mini{ position:absolute; top:-14px; right:20px; background:var(--amber); color:var(--ink); font-size:10px; font-weight:700; padding:5px 10px; border-radius:6px; transform:rotate(4deg);}
+
+  /* ---------- APP SHELL ---------- */
+  #appScreen{ display:none; min-height:100vh; }
+  nav{
+    position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:rgba(13,8,23,0.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+  }
+  .nav-user{ display:flex; align-items:center; gap:10px; position:relative; }
+  .avatar{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--magenta),var(--cyan)); display:flex; align-items:center; justify-content:center; font-family:'Anton'; font-size:14px; color:var(--ink);}
+  .nav-user b{ font-size:13px; display:block; }
+  .nav-user span{ font-size:10px; color:var(--paper-dim); text-transform:uppercase; letter-spacing:1px;}
+  .profile-menu{ position:absolute; top:44px; right:0; width:220px; background:var(--ink2); border:1px solid var(--line); border-radius:14px; box-shadow:0 12px 32px rgba(0,0,0,0.5); z-index:50; overflow:hidden; display:none; }
+  .profile-menu.show{ display:block; }
+  .profile-menu-head{ padding:14px 16px; border-bottom:1px solid var(--line); }
+  .profile-menu-head b{ font-size:14px; display:block; }
+  .profile-menu-head span{ font-size:11px; color:var(--paper-dim); word-break:break-all; }
+  .profile-menu-item{ padding:12px 16px; font-size:13px; font-weight:600; cursor:pointer; border-bottom:1px solid var(--line); }
+  .profile-menu-item:last-child{ border-bottom:none; color:var(--magenta); }
+  .profile-menu-item:hover{ background:rgba(255,255,255,0.04); }
+  .logout-link{ background:none; border:1px solid var(--line); color:var(--paper-dim); font-size:12px; padding:8px 12px; border-radius:8px; cursor:pointer; font-family:inherit;}
+  .logout-link:hover{ border-color:var(--error); color:var(--error);}
+
+  .tabbar{ display:flex; gap:8px; padding:14px 20px; overflow-x:auto; border-bottom:1px solid var(--line); }
+  .tabbar::-webkit-scrollbar{ display:none; }
+  .tabbtn{ flex:0 0 auto; font-size:13px; padding:9px 16px; border-radius:100px; border:1px solid var(--line); color:var(--paper-dim); cursor:pointer; white-space:nowrap; background:transparent; font-family:inherit;}
+  .tabbtn.active{ background:var(--paper); color:var(--ink); border-color:var(--paper); font-weight:600;}
+
+  .view{ padding:20px; display:none; }
+  .view.active{ display:block; }
+
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px;}
+  .section-title{ font-family:'Anton'; font-size:20px; text-transform:uppercase; letter-spacing:0.5px;}
+  .section-title em{ font-style:normal; color:var(--magenta); }
+
+  /* Event cards (Module 2) */
+  .grid{ display:grid; grid-template-columns:1fr; gap:16px; }
+  @media(min-width:640px){ .grid{ grid-template-columns:1fr 1fr; } }
+  .card{ background:var(--ink2); border:1px solid var(--line); border-radius:16px; overflow:hidden; display:flex; flex-direction:column;}
+  .card-img{ height:140px; width:100%; object-fit:cover; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; background:linear-gradient(135deg,#2A1745,#170D28); position:relative; overflow:hidden;}
+  .card-img .tpl-icon{ font-size:34px; line-height:1; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35)); }
+  .card-img .tpl-label{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:rgba(243,238,250,0.85); }
+  .card-body{ padding:16px; }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .card-name{ font-size:16px; font-weight:700;}
+  .card-area{ font-size:12px; color:var(--paper-dim); margin-top:2px;}
+  .price{ text-align:right;}
+  .price b{ font-family:'Anton'; font-size:15px; color:var(--amber);}
+  .price span{ display:block; font-size:10px; color:var(--paper-dim);}
+  .card-meta{ display:flex; gap:12px; margin:12px 0; font-size:12px; color:var(--paper-dim); flex-wrap:wrap;}
+  .card-meta span{ display:flex; align-items:center; gap:5px;}
+  .bd{ width:5px; height:5px; border-radius:50%; background:var(--cyan); display:inline-block;}
+  .capacity-bar{ height:5px; background:var(--ink); border-radius:100px; overflow:hidden; margin-bottom:12px;}
+  .capacity-fill{ height:100%; background:var(--cyan); }
+  .card-foot{ display:flex; gap:10px; }
+  .book-btn{ flex:1; background:var(--magenta); color:var(--ink); border:none; border-radius:9px; padding:11px; font-weight:700; font-size:13px; cursor:pointer;}
+  .book-btn:disabled{ background:var(--ink3); color:var(--paper-dim); cursor:not-allowed;}
+
+  /* Bookings list */
+  .booking-row{ background:var(--ink2); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:12px;}
+  .booking-row b{ font-size:14px; display:block; }
+  .booking-row .meta{ font-size:12px; color:var(--paper-dim); margin-top:3px;}
+  .status-tag{ font-size:11px; font-weight:700; padding:5px 10px; border-radius:6px; white-space:nowrap;}
+  .status-confirmed{ background:var(--good); color:var(--ink); }
+  .status-cancelled{ background:var(--error); color:var(--ink); }
+  .cancel-btn{ background:transparent; border:1px solid var(--line); color:var(--paper-dim); font-size:12px; padding:8px 12px; border-radius:8px; cursor:pointer;}
+  .cancel-btn:hover{ border-color:var(--error); color:var(--error);}
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--paper-dim); }
+  .empty-state .big{ font-size:32px; margin-bottom:10px; }
+
+  /* KPI cards (Module 3) */
+  .kpi-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px;}
+  @media(min-width:640px){ .kpi-grid{ grid-template-columns:repeat(4,1fr); } }
+  .kpi{ background:var(--ink2); border:1px solid var(--line); border-radius:14px; padding:16px;}
+  .kpi span{ font-size:11px; color:var(--paper-dim); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:8px;}
+  .kpi b{ font-family:'Anton'; font-size:24px; }
+  .kpi b.magenta{ color:var(--magenta); } .kpi b.cyan{ color:var(--cyan); } .kpi b.amber{ color:var(--amber); }
+
+  .chart-box{ background:var(--ink2); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:24px;}
+  .chart-row{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .chart-label{ width:110px; font-size:12px; color:var(--paper-dim); flex-shrink:0; }
+  .chart-track{ flex:1; height:14px; background:var(--ink); border-radius:100px; overflow:hidden; }
+  .chart-fill{ height:100%; background:linear-gradient(90deg, var(--magenta), var(--cyan)); border-radius:100px;}
+  .chart-val{ width:40px; text-align:right; font-size:12px; color:var(--paper-dim); flex-shrink:0;}
+
+  /* Admin event manager table */
+  .table-wrap{ background:var(--ink2); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:20px;}
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th,td{ padding:12px 14px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th{ color:var(--paper-dim); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+  tr:last-child td{ border-bottom:none; }
+  .table-scroll{ overflow-x:auto; }
+  .icon-btn{ background:transparent; border:1px solid var(--line); color:var(--paper-dim); font-size:12px; padding:6px 10px; border-radius:7px; cursor:pointer; margin-right:6px;}
+  .icon-btn:hover{ border-color:var(--cyan); color:var(--cyan);}
+  .icon-btn.danger:hover{ border-color:var(--error); color:var(--error);}
+
+  .add-event-form{ background:var(--ink2); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:20px; display:none; }
+  .add-event-form.show{ display:block; }
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:480px){ .form-grid{ grid-template-columns:1fr; } }
+
+  .filter-bar{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .filter-bar select, .filter-bar input{ background:var(--ink2); border:1px solid var(--line); color:var(--paper); padding:10px 12px; border-radius:9px; font-family:inherit; font-size:13px;}
+
+  .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-120%); background:var(--paper); color:var(--ink); padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; z-index:60; transition:transform .35s ease; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+  .toast.show{ transform:translateX(-50%) translateY(0); }
+  .toast.error{ background:var(--error); color:var(--ink); }
+
+  .btn-outline{ background:transparent; border:1px solid var(--line); color:var(--paper); font-family:inherit; font-size:13px; padding:10px 16px; border-radius:9px; cursor:pointer;}
+  .btn-outline:hover{ border-color:var(--cyan); color:var(--cyan);}
+
+  /* Search bar */
+  .search-bar{ position:relative; margin-bottom:18px; }
+  .search-bar input{
+    width:100%; background:var(--ink2); border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px 13px 40px; color:var(--paper); font-family:'Space Grotesk'; font-size:14px; outline:none;
+  }
+  .search-bar input:focus{ border-color:var(--cyan); }
+  .search-bar input::placeholder{ color:var(--paper-dim); }
+  .search-icon{ position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--paper-dim); font-size:16px; }
+  .no-results{ text-align:center; padding:50px 20px; color:var(--paper-dim); grid-column:1/-1; }
+
+  /* Payment modal */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(6,3,12,0.75); backdrop-filter:blur(6px);
+    z-index:80; align-items:flex-end; justify-content:center;
+  }
+  .modal-overlay.show{ display:flex; }
+  @media(min-width:640px){ .modal-overlay{ align-items:center; } }
+  .modal-box{
+    background:var(--ink2); border:1px solid var(--line); border-top-left-radius:22px; border-top-right-radius:22px;
+    width:100%; max-width:440px; padding:24px; max-height:92vh; overflow-y:auto;
+    animation:slideUp .25s ease;
+  }
+  @media(min-width:640px){ .modal-box{ border-radius:22px; } }
+  @keyframes slideUp{ from{ transform:translateY(30px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .modal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+  .modal-title{ font-family:'Anton'; font-size:19px; text-transform:uppercase; }
+  .modal-close{ background:transparent; border:1px solid var(--line); color:var(--paper-dim); width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:15px; }
+  .order-summary{ background:var(--ink); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px; }
+  .order-row{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px; color:var(--paper-dim); }
+  .order-row:last-child{ margin-bottom:0; padding-top:10px; border-top:1px solid var(--line); color:var(--paper); font-weight:700; }
+  .qty-control{ display:flex; align-items:center; gap:14px; }
+  .qty-btn{ width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:var(--ink); color:var(--paper); cursor:pointer; font-size:15px; }
+  .qty-val{ font-weight:700; min-width:16px; text-align:center; }
+  .pay-tabs{ display:flex; gap:8px; margin-bottom:18px; }
+  .pay-tab{ flex:1; text-align:center; padding:10px; border-radius:10px; font-size:12px; font-weight:600; color:var(--paper-dim); cursor:pointer; border:1px solid var(--line);}
+  .pay-tab.active{ background:var(--paper); color:var(--ink); border-color:var(--paper); }
+  .card-icon-row{ position:absolute; right:14px; top:50%; transform:translateY(-50%); font-size:11px; color:var(--paper-dim); }
+  .field-inline{ display:flex; gap:12px; }
+  .field-inline .field{ flex:1; }
+  .paying-overlay{ text-align:center; padding:30px 10px; }
+  .paying-spinner{ width:36px; height:36px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--magenta); animation:spin .8s linear infinite; margin:0 auto 16px; }
+  .pay-success{ text-align:center; padding:20px 10px; }
+  .success-check{ width:56px; height:56px; border-radius:50%; background:var(--good); color:var(--ink); font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; }
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- ============ MODULE 1: LOGIN / SIGNUP ============ -->
+<div id="authScreen">
+  <div class="auth-wrap">
+    <div class="logo">EVENT<span>HUB</span></div>
+    <div class="tagline">Discover · Book · Attend Events</div>
+
+    <div class="panel">
+      <div class="stub-mini">MEMBER ACCESS</div>
+      <div class="tabs">
+        <div class="tab active" id="tabLogin" onclick="switchAuthTab('login')">Log in</div>
+        <div class="tab" id="tabSignup" onclick="switchAuthTab('signup')">Sign up</div>
+      </div>
+
+      <div id="loginForm">
+        <h1>Welcome back</h1>
+        <p class="sub">Log in to manage bookings.</p>
+
+        <div class="field" id="loginEmailField">
+          <label>Email</label>
+          <input id="loginEmail" type="text" placeholder="you@email.com">
+          <div class="err-msg">Enter a valid email address.</div>
+        </div>
+        <div class="field" id="loginPassField">
+          <label>Password</label>
+          <input id="loginPassword" type="password" placeholder="••••••••">
+          <div class="err-msg">Password must be at least 6 characters.</div>
+        </div>
+        <div class="row-between">
+          <label class="remember"><input type="checkbox">Remember me</label>
+          <button type="button" class="forgot" onclick="showToast('Password reset link sent (demo)', false)">Forgot password?</button>
+        </div>
+        <div id="loginBannerMsg" style="display:none; background:var(--error); color:var(--ink); font-size:12px; font-weight:600; padding:10px 12px; border-radius:8px; margin-bottom:14px;"></div>
+        <button class="btn btn-primary" type="button" id="loginBtn" onclick="handleLogin()">
+          <span class="spinner" id="loginSpinner"></span><span id="loginBtnText">Log in</span>
+        </button>
+      </div>
+
+      <div id="signupForm" class="hidden">
+        <h1>Create account</h1>
+        <p class="sub">Join to start booking events.</p>
+        <div class="field" id="signupNameField">
+          <label>Full name</label>
+          <input id="signupName" type="text" placeholder="Your name">
+          <div class="err-msg">Enter your name.</div>
+        </div>
+        <div class="field" id="signupEmailField">
+          <label>Email</label>
+          <input id="signupEmail" type="text" placeholder="you@email.com">
+          <div class="err-msg">Enter a valid email address.</div>
+        </div>
+        <div class="field" id="signupPassField">
+          <label>Password</label>
+          <input id="signupPassword" type="password" placeholder="At least 6 characters">
+          <div class="err-msg">Password must be at least 6 characters.</div>
+        </div>
+        <div id="signupBannerMsg" style="display:none; background:var(--error); color:var(--ink); font-size:12px; font-weight:600; padding:10px 12px; border-radius:8px; margin-bottom:14px;"></div>
+        <button class="btn btn-primary" type="button" id="signupBtn" onclick="handleSignup()">
+          <span class="spinner" id="signupSpinner"></span><span id="signupBtnText">Create account</span>
+        </button>
+      </div>
+
+      <div class="demo-hint">
+        Demo user: <b>test@eventhub.com</b> / party123<br>
+        Demo admin: <b>admin@eventhub.com</b> / admin123
+      </div>
+
+      <div class="footer-note" id="switchNote">
+        New here? <button onclick="switchAuthTab('signup')">Create an account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL (Module 2 + Module 3) ============ -->
+<div id="appScreen">
+  <nav>
+    <div class="logo" style="font-size:17px;">EVENT<span>HUB</span></div>
+    <div class="nav-user">
+      <div>
+        <b id="navName" style="text-align:right;">User</b>
+        <span id="navRole">MEMBER</span>
+      </div>
+      <div class="avatar" id="navAvatar" onclick="toggleProfileMenu(event)" style="cursor:pointer;" title="Profile menu">U</div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="profile-menu-head">
+          <b id="profileMenuName">User</b>
+          <span id="profileMenuEmail"></span>
+        </div>
+        <div class="profile-menu-item" onclick="handleProfileMenuAction('profile')">My Profile</div>
+        <div class="profile-menu-item" onclick="handleProfileMenuAction('orders')">Orders</div>
+        <div class="profile-menu-item" id="profileMenuReport" onclick="handleProfileMenuAction('report')">Report</div>
+        <div class="profile-menu-item" onclick="handleProfileMenuAction('signout')">Sign Out</div>
+      </div>
+      <button class="logout-link" onclick="handleLogout()">Log out</button>
+    </div>
+  </nav>
+
+  <div class="tabbar" id="tabbar"></div>
+
+  <!-- ---- USER: EVENTS (Module 2) ---- -->
+  <div class="view" id="view-events">
+    <div class="section-head">
+      <div class="section-title">Book your <em>night</em></div>
+    </div>
+    <div class="search-bar">
+      <span class="search-icon">⌕</span>
+      <input id="eventSearch" type="text" placeholder="Search by event name or area..." oninput="renderEvents()">
+    </div>
+    <div class="grid" id="eventsGrid"></div>
+  </div>
+
+  <!-- ---- USER: MY BOOKINGS (Module 2) ---- -->
+  <div class="view" id="view-bookings">
+    <div class="section-head">
+      <div class="section-title">My <em>bookings</em></div>
+    </div>
+    <div id="bookingsList"></div>
+  </div>
+
+  <!-- ---- ADMIN: DASHBOARD (Module 3) ---- -->
+  <div class="view" id="view-dashboard">
+    <div class="section-head">
+      <div class="section-title">Admin <em>dashboard</em></div>
+    </div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="chart-box">
+      <div class="section-title" style="font-size:15px; margin-bottom:16px;">Bookings by event</div>
+      <div id="chartArea"></div>
+    </div>
+  </div>
+
+  <!-- ---- ADMIN: REPORT (Profits + Order reports) — reached via the profile dropdown, not a tab ---- -->
+  <div class="view" id="view-report">
+    <div class="section-head">
+      <div class="section-title"><em>Profits</em></div>
+    </div>
+    <div class="kpi-grid" id="profitGrid"></div>
+
+    <div class="section-head" style="margin-top:32px;">
+      <div class="section-title">Order <em>reports</em></div>
+      <button class="btn-outline" onclick="exportCSV()">Export CSV</button>
+    </div>
+    <div class="filter-bar">
+      <select id="reportStatusFilter" onchange="renderReports()">
+        <option value="all">All statuses</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <select id="reportEventFilter" onchange="renderReports()">
+        <option value="all">All events</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Booking ID</th><th>User</th><th>Event</th><th>Seats</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="reportsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- ADMIN: EVENTS MANAGER (Module 3) ---- -->
+  <div class="view" id="view-manage">
+    <div class="section-head">
+      <div class="section-title">Manage <em>events</em></div>
+      <button class="btn-outline" onclick="toggleAddForm()">+ Add event</button>
+    </div>
+
+    <div class="add-event-form" id="addEventForm">
+      <div class="form-grid">
+        <div class="field"><label>Name</label><input id="newEvName" placeholder="Career Growth Seminar"></div>
+        <div class="field"><label>Area</label><input id="newEvArea" placeholder="T Nagar"></div>
+        <div class="field"><label>Date</label><input id="newEvDate" type="text" placeholder="Sat, 19 Jul"></div>
+        <div class="field"><label>Time</label><input id="newEvTime" type="text" placeholder="10 PM – 3 AM"></div>
+        <div class="field"><label>Price (₹)</label><input id="newEvPrice" type="number" placeholder="1200"></div>
+        <div class="field"><label>Capacity</label><input id="newEvCap" type="number" placeholder="150"></div>
+        <div class="field">
+          <label>Category</label>
+          <select id="newEvCategory">
+            <option value="dance">Dance</option>
+            <option value="sports">Sports</option>
+            <option value="seminar">Seminar</option>
+            <option value="workshop">Workshop</option>
+            <option value="music">Music</option>
+            <option value="food">Food</option>
+            <option value="art">Art</option>
+            <option value="tech">Tech</option>
+            <option value="other" selected>Other</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:6px;" onclick="addEvent()">Save event</button>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Event</th><th>Area</th><th>Date</th><th>Price</th><th>Booked / Cap</th><th>Actions</th></tr></thead>
+          <tbody id="eventsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PAYMENT MODAL ============ -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal-box">
+
+    <div id="payStepForm">
+      <div class="modal-head">
+        <div class="modal-title">Checkout</div>
+        <button class="modal-close" onclick="closePaymentModal()">✕</button>
+      </div>
+
+      <div class="order-summary" id="orderSummary"></div>
+
+      <div class="field">
+        <label>Tickets</label>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <span class="qty-val" id="qtyVal">1</span>
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+        </div>
+      </div>
+
+      <div class="pay-tabs">
+        <div class="pay-tab active" id="payTabCard" onclick="switchPayMethod('card')">Card</div>
+        <div class="pay-tab" id="payTabUpi" onclick="switchPayMethod('upi')">UPI</div>
+      </div>
+
+      <div id="payCardFields">
+        <div class="field">
+          <label>Card number</label>
+          <input id="cardNumber" type="text" inputmode="numeric" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCardNumber(this)">
+          <div class="err-msg" id="cardNumberErr">Enter a valid 16-digit card number.</div>
+        </div>
+        <div class="field-inline">
+          <div class="field">
+            <label>Expiry</label>
+            <input id="cardExpiry" type="text" placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+            <div class="err-msg" id="cardExpiryErr">Enter a valid future expiry (MM/YY).</div>
+          </div>
+          <div class="field">
+            <label>CVV</label>
+            <input id="cardCvv" type="password" inputmode="numeric" placeholder="123" maxlength="3">
+            <div class="err-msg" id="cardCvvErr">Enter a valid 3-digit CVV.</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Name on card</label>
+          <input id="cardName" type="text" placeholder="As printed on card">
+          <div class="err-msg" id="cardNameErr">Enter the name on your card.</div>
+        </div>
+      </div>
+
+      <div id="payUpiFields" class="hidden">
+        <div class="field">
+          <label>UPI ID</label>
+          <input id="upiId" type="text" placeholder="yourname@upi">
+          <div class="err-msg" id="upiIdErr">Enter a valid UPI ID (e.g. name@bank).</div>
+        </div>
+      </div>
+
+      <div id="payBannerMsg" style="display:none; background:var(--error); color:var(--ink); font-size:12px; font-weight:600; padding:10px 12px; border-radius:8px; margin-bottom:14px;"></div>
+
+      <button class="btn btn-primary" id="payBtn" onclick="processPayment()">Pay now</button>
+      <p style="text-align:center; font-size:11px; color:var(--paper-dim); margin-top:12px;">Demo checkout — no real payment is processed.</p>
+    </div>
+
+    <div id="payStepProcessing" class="hidden">
+      <div class="paying-overlay">
+        <div class="paying-spinner"></div>
+        <b>Processing payment…</b>
+        <p style="color:var(--paper-dim); font-size:12px; margin-top:6px;">Please don't close this window.</p>
+      </div>
+    </div>
+
+    <div id="payStepSuccess" class="hidden">
+      <div class="pay-success">
+        <div class="success-check">✓</div>
+        <h1 style="font-family:'Anton'; font-size:20px; text-transform:uppercase;">Payment successful</h1>
+        <p style="color:var(--paper-dim); font-size:13px; margin-top:8px;" id="successSummary"></p>
+        <button class="btn btn-primary" style="margin-top:20px;" onclick="closePaymentModal()">Done</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ================= STATE (in-memory demo data, resets on refresh) ================= */
+const accounts = {
+  "test@eventhub.com": { password:"party123", name:"Demo User", role:"user" },
+  "admin@eventhub.com": { password:"admin123", name:"Admin", role:"admin" }
+};
+
+let events = [
+  { id:1, name:"Rhythm Nights — Dance Meetup", area:"T Nagar", date:"Sat, 19 Jul", time:"6 PM – 9 PM", price:499, capacity:150, booked:112, category:"dance" },
+  { id:2, name:"Chennai City Marathon", area:"Marina Beach", date:"Sun, 20 Jul", time:"5 AM – 9 AM", price:299, capacity:200, booked:180, category:"sports" },
+  { id:3, name:"Career Growth Seminar — Tech & Beyond", area:"Anna Nagar", date:"Sat, 19 Jul", time:"10 AM – 1 PM", price:199, capacity:120, booked:60, category:"seminar" },
+  { id:4, name:"Salsa & Hip-Hop Dance Workshop", area:"Velachery", date:"Thu, 17 Jul", time:"7 PM – 9 PM", price:399, capacity:100, booked:95, category:"workshop" },
+  { id:5, name:"Indie Rock Night", area:"Nungambakkam", date:"Fri, 25 Jul", time:"8 PM – 11 PM", price:599, capacity:180, booked:140, category:"music" },
+  { id:6, name:"Street Food Festival", area:"Besant Nagar", date:"Sat, 26 Jul", time:"4 PM – 10 PM", price:149, capacity:300, booked:210, category:"food" },
+  { id:7, name:"Contemporary Art Exhibition", area:"Egmore", date:"Sun, 27 Jul", time:"11 AM – 6 PM", price:0, capacity:250, booked:80, category:"art" },
+  { id:8, name:"AI & Web3 Tech Summit", area:"OMR", date:"Sat, 2 Aug", time:"9 AM – 5 PM", price:899, capacity:200, booked:150, category:"tech" },
+  { id:9, name:"Weekend Football League", area:"Kotturpuram", date:"Sun, 3 Aug", time:"6 AM – 9 AM", price:249, capacity:80, booked:64, category:"sports" },
+  { id:10, name:"Bollywood Dance Night", area:"Adyar", date:"Fri, 8 Aug", time:"7 PM – 10 PM", price:449, capacity:160, booked:70, category:"dance" },
+  { id:11, name:"Startup Pitch & Networking", area:"Guindy", date:"Sat, 9 Aug", time:"3 PM – 7 PM", price:299, capacity:100, booked:45, category:"seminar" },
+  { id:12, name:"Pottery & Craft Workshop", area:"Mylapore", date:"Sun, 10 Aug", time:"10 AM – 1 PM", price:349, capacity:40, booked:28, category:"workshop" },
+  { id:13, name:"Classical Carnatic Concert", area:"Alwarpet", date:"Sat, 16 Aug", time:"6 PM – 8:30 PM", price:349, capacity:220, booked:190, category:"music" },
+  { id:14, name:"Food Truck Carnival", area:"ECR", date:"Sun, 17 Aug", time:"5 PM – 11 PM", price:99, capacity:400, booked:260, category:"food" }
+];
+
+/* Per-category visual template used for the card banner (icon + gradient + label) */
+const EVENT_TEMPLATES = {
+  dance:    { icon:"💃", label:"Dance",    gradient:"linear-gradient(135deg,#5A1240,#2A0A24)" },
+  sports:   { icon:"🏃", label:"Sports",   gradient:"linear-gradient(135deg,#0E4A46,#0A2422)" },
+  seminar:  { icon:"💼", label:"Seminar",  gradient:"linear-gradient(135deg,#5A3B0E,#2A1B08)" },
+  workshop: { icon:"🕺", label:"Workshop", gradient:"linear-gradient(135deg,#3B1A5A,#1C0E2E)" },
+  music:    { icon:"🎵", label:"Music",    gradient:"linear-gradient(135deg,#1A2E5A,#0D162E)" },
+  food:     { icon:"🍽️", label:"Food",     gradient:"linear-gradient(135deg,#5A2A0E,#2E1508)" },
+  art:      { icon:"🎨", label:"Art",      gradient:"linear-gradient(135deg,#4A0E5A,#25082E)" },
+  tech:     { icon:"💻", label:"Tech",     gradient:"linear-gradient(135deg,#0E3A5A,#08202E)" },
+  other:    { icon:"🎟️", label:"Event",    gradient:"linear-gradient(135deg,#2A1745,#170D28)" }
+};
+function getEventTemplate(ev){
+  return EVENT_TEMPLATES[ev.category] || EVENT_TEMPLATES.other;
+}
+
+let bookings = [
+  { id:1, userEmail:"test@eventhub.com", eventId:1, seats:2, amount:998, status:"confirmed", paymentMethod:"Card", date:"7/10/2026" },
+  { id:2, userEmail:"test@eventhub.com", eventId:2, seats:1, amount:299, status:"confirmed", paymentMethod:"UPI", date:"7/11/2026" },
+  { id:3, userEmail:"test@eventhub.com", eventId:3, seats:3, amount:597, status:"cancelled", paymentMethod:"Card", date:"7/12/2026" },
+  { id:4, userEmail:"test@eventhub.com", eventId:4, seats:2, amount:798, status:"confirmed", paymentMethod:"UPI", date:"7/13/2026" }
+]; // { id, userEmail, eventId, seats, amount, status, date }
+let bookingIdCounter = 5;
+
+let currentUser = null; // { email, name, role }
+let currentAdminView = 'dashboard';
+let currentUserView = 'events';
+
+/* ================= TOAST ================= */
+function showToast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'toast'; }, 2600);
+}
+
+/* ================= AUTH TABS ================= */
+function switchAuthTab(tab){
+  const isLogin = tab === 'login';
+  document.getElementById('tabLogin').classList.toggle('active', isLogin);
+  document.getElementById('tabSignup').classList.toggle('active', !isLogin);
+  document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+  document.getElementById('signupForm').classList.toggle('hidden', isLogin);
+  document.getElementById('switchNote').innerHTML = isLogin
+    ? 'New here? <button onclick="switchAuthTab(\'signup\')">Create an account</button>'
+    : 'Already have an account? <button onclick="switchAuthTab(\'login\')">Log in</button>';
+}
+
+function setError(fieldId, hasError){ document.getElementById(fieldId).classList.toggle('has-error', hasError); }
+function validEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+function showBanner(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideBanner(id){
+  document.getElementById(id).style.display = 'none';
+}
+
+function handleLogin(){
+  hideBanner('loginBannerMsg');
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  setError('loginEmailField', !validEmail(email));
+  setError('loginPassField', pass.length < 6);
+  if (!validEmail(email) || pass.length < 6) {
+    showBanner('loginBannerMsg', 'Please enter a valid email and a password of 6+ characters.');
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn'), spinner = document.getElementById('loginSpinner'), btnText = document.getElementById('loginBtnText');
+  btn.disabled = true; spinner.style.display='inline-block'; btnText.textContent='Logging in...';
+
+  setTimeout(() => {
+    btn.disabled = false; spinner.style.display='none'; btnText.textContent='Log in';
+    const acc = accounts[email];
+    if (acc && acc.password === pass) {
+      login(email, acc.name, acc.role);
+    } else {
+      showBanner('loginBannerMsg', 'Incorrect email or password. Try the demo login shown below.');
+      showToast('Incorrect email or password', true);
+    }
+  }, 400);
+}
+
+function handleSignup(){
+  hideBanner('signupBannerMsg');
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass = document.getElementById('signupPassword').value;
+  setError('signupNameField', name.length===0);
+  setError('signupEmailField', !validEmail(email));
+  setError('signupPassField', pass.length<6);
+  if (name.length===0 || !validEmail(email) || pass.length<6) {
+    showBanner('signupBannerMsg', 'Please fill in your name, a valid email, and a password of 6+ characters.');
+    return;
+  }
+
+  const btn = document.getElementById('signupBtn'), spinner = document.getElementById('signupSpinner'), btnText = document.getElementById('signupBtnText');
+  btn.disabled = true; spinner.style.display='inline-block'; btnText.textContent='Creating...';
+
+  setTimeout(() => {
+    btn.disabled = false; spinner.style.display='none'; btnText.textContent='Create account';
+    if (accounts[email]) {
+      showBanner('signupBannerMsg', 'An account with this email already exists. Try logging in instead.');
+      showToast('Account already exists', true);
+      return;
+    }
+    accounts[email] = { password:pass, name:name, role:'user' };
+    showToast('Account created!', false);
+    login(email, name, 'user');
+  }, 400);
+}
+
+function login(email, name, role){
+  currentUser = { email, name, role };
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('navName').textContent = name;
+  document.getElementById('navRole').textContent = role === 'admin' ? 'ADMIN' : 'MEMBER';
+  document.getElementById('navAvatar').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('profileMenuName').textContent = name;
+  document.getElementById('profileMenuEmail').textContent = email;
+  document.getElementById('profileMenuReport').style.display = role === 'admin' ? 'block' : 'none';
+  buildTabbar();
+  showToast('Welcome, ' + name.split(' ')[0] + '!', false);
+}
+
+function handleLogout(){
+  currentUser = null;
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('profileMenu').classList.remove('show');
+  switchAuthTab('login');
+  showToast('Logged out', false);
+}
+
+function toggleProfileMenu(evt){
+  evt.stopPropagation();
+  document.getElementById('profileMenu').classList.toggle('show');
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('profileMenu');
+  if (menu && menu.classList.contains('show') && !menu.contains(e.target) && e.target.id !== 'navAvatar') {
+    menu.classList.remove('show');
+  }
+});
+function handleProfileMenuAction(action){
+  document.getElementById('profileMenu').classList.remove('show');
+  if (!currentUser) return;
+
+  if (action === 'signout') { handleLogout(); return; }
+
+  if (action === 'profile') { showToast('Profile settings coming soon', false); return; }
+
+  if (action === 'orders') {
+    const label = currentUser.role === 'admin' ? 'Manage events' : 'My bookings';
+    const btn = [...document.querySelectorAll('.tabbtn')].find(b => b.textContent === label);
+    if (btn) switchAppView(currentUser.role === 'admin' ? 'manage' : 'bookings', btn);
+    return;
+  }
+
+  if (action === 'report') {
+    if (currentUser.role !== 'admin') return;
+    switchAppView('report', null);
+  }
+}
+
+/* ================= TAB NAVIGATION ================= */
+function buildTabbar(){
+  const tb = document.getElementById('tabbar');
+  tb.innerHTML = '';
+  const tabs = currentUser.role === 'admin'
+    ? [['dashboard','Dashboard'], ['manage','Manage events']]
+    : [['events','Browse events'], ['bookings','My bookings']];
+
+  tabs.forEach(([key,label], i) => {
+    const b = document.createElement('button');
+    b.className = 'tabbtn' + (i===0 ? ' active' : '');
+    b.textContent = label;
+    b.onclick = () => switchAppView(key, b);
+    tb.appendChild(b);
+  });
+
+  switchAppView(tabs[0][0], tb.firstChild);
+}
+
+function switchAppView(key, btnEl){
+  document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + key).classList.add('active');
+
+  if (key === 'events') renderEvents();
+  if (key === 'bookings') renderBookings();
+  if (key === 'dashboard') renderDashboard();
+  if (key === 'manage') renderManage();
+  if (key === 'report') { renderProfits(); renderReports(); }
+}
+
+/* ================= MODULE 2: EVENT BOOKING (user side) ================= */
+function renderEvents(){
+  const grid = document.getElementById('eventsGrid');
+  const query = (document.getElementById('eventSearch').value || '').trim().toLowerCase();
+  const filtered = events.filter(ev =>
+    ev.name.toLowerCase().includes(query) || ev.area.toLowerCase().includes(query)
+  );
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="no-results">No events match "${query}" — try a different name or area.</div>`;
+    return;
+  }
+
+  grid.innerHTML = '';
+  filtered.forEach(ev => {
+    const pct = Math.min(100, Math.round((ev.booked/ev.capacity)*100));
+    const soldOut = ev.booked >= ev.capacity;
+    const card = document.createElement('div');
+    card.className = 'card';
+    const tpl = getEventTemplate(ev);
+    card.innerHTML = `
+      <div class="card-img" style="background:${tpl.gradient}">
+        <span class="tpl-icon">${tpl.icon}</span>
+        <span class="tpl-label">${tpl.label}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-top">
+          <div><div class="card-name">${ev.name}</div><div class="card-area">${ev.area} · ${ev.date}</div></div>
+          <div class="price"><b>₹${ev.price}</b><span>per ticket</span></div>
+        </div>
+        <div class="card-meta"><span><i class="bd"></i>${ev.time}</span><span><i class="bd"></i>${ev.capacity - ev.booked} spots left</span></div>
+        <div class="capacity-bar"><div class="capacity-fill" style="width:${pct}%"></div></div>
+        <div class="card-foot">
+          <button class="book-btn" ${soldOut?'disabled':''} onclick="openPaymentModal(${ev.id})">${soldOut?'Sold out':'Book ticket'}</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+/* ---- Payment modal state & logic ---- */
+let payState = { eventId:null, qty:1, method:'card' };
+
+function openPaymentModal(eventId){
+  const ev = events.find(e => e.id === eventId);
+  if (!ev) return;
+  payState = { eventId, qty:1, method:'card' };
+  document.getElementById('payStepForm').classList.remove('hidden');
+  document.getElementById('payStepProcessing').classList.add('hidden');
+  document.getElementById('payStepSuccess').classList.add('hidden');
+  document.getElementById('payBtn').disabled = false;
+  switchPayMethod('card');
+  ['cardNumber','cardExpiry','cardCvv','cardName','upiId'].forEach(id => document.getElementById(id).value = '');
+  hideBanner('payBannerMsg');
+  updateOrderSummary();
+  document.getElementById('paymentModal').classList.add('show');
+}
+
+function closePaymentModal(){
+  document.getElementById('paymentModal').classList.remove('show');
+  renderEvents();
+  if (typeof renderBookings === 'function' && document.getElementById('view-bookings').classList.contains('active')) renderBookings();
+}
+
+function changeQty(delta){
+  const ev = events.find(e => e.id === payState.eventId);
+  if (!ev) return;
+  const maxAvailable = ev.capacity - ev.booked;
+  const next = payState.qty + delta;
+  if (next < 1 || next > maxAvailable || next > 8) return;
+  payState.qty = next;
+  document.getElementById('qtyVal').textContent = payState.qty;
+  updateOrderSummary();
+}
+
+function updateOrderSummary(){
+  const ev = events.find(e => e.id === payState.eventId);
+  if (!ev) return;
+  const total = ev.price * payState.qty;
+  document.getElementById('orderSummary').innerHTML = `
+    <div class="order-row"><span>${ev.name}</span><span>${ev.area}</span></div>
+    <div class="order-row"><span>Tickets × ${payState.qty}</span><span>₹${ev.price} each</span></div>
+    <div class="order-row"><span>Total</span><span>₹${total}</span></div>
+  `;
+}
+
+function switchPayMethod(method){
+  payState.method = method;
+  document.getElementById('payTabCard').classList.toggle('active', method === 'card');
+  document.getElementById('payTabUpi').classList.toggle('active', method === 'upi');
+  document.getElementById('payCardFields').classList.toggle('hidden', method !== 'card');
+  document.getElementById('payUpiFields').classList.toggle('hidden', method !== 'upi');
+  hideBanner('payBannerMsg');
+}
+
+function formatCardNumber(input){
+  let digits = input.value.replace(/\D/g,'').slice(0,16);
+  input.value = digits.replace(/(.{4})/g,'$1 ').trim();
+}
+
+function formatExpiry(input){
+  let digits = input.value.replace(/\D/g,'').slice(0,4);
+  if (digits.length >= 3) digits = digits.slice(0,2) + '/' + digits.slice(2);
+  input.value = digits;
+}
+
+function validCardExpiry(v){
+  const m = v.match(/^(\d{2})\/(\d{2})$/);
+  if (!m) return false;
+  const month = parseInt(m[1]), year = 2000 + parseInt(m[2]);
+  if (month < 1 || month > 12) return false;
+  const now = new Date();
+  const expiryDate = new Date(year, month, 0);
+  return expiryDate >= new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function validUpi(v){
+  return /^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(v);
+}
+
+function processPayment(){
+  hideBanner('payBannerMsg');
+  let valid = true;
+
+  if (payState.method === 'card') {
+    const num = document.getElementById('cardNumber').value.replace(/\s/g,'');
+    const exp = document.getElementById('cardExpiry').value;
+    const cvv = document.getElementById('cardCvv').value;
+    const name = document.getElementById('cardName').value.trim();
+
+    const numOk = /^\d{16}$/.test(num);
+    const expOk = validCardExpiry(exp);
+    const cvvOk = /^\d{3}$/.test(cvv);
+    const nameOk = name.length > 0;
+
+    document.getElementById('cardNumberErr').style.display = numOk ? 'none' : 'block';
+    document.getElementById('cardExpiryErr').style.display = expOk ? 'none' : 'block';
+    document.getElementById('cardCvvErr').style.display = cvvOk ? 'none' : 'block';
+    document.getElementById('cardNameErr').style.display = nameOk ? 'none' : 'block';
+
+    valid = numOk && expOk && cvvOk && nameOk;
+  } else {
+    const upi = document.getElementById('upiId').value.trim();
+    const upiOk = validUpi(upi);
+    document.getElementById('upiIdErr').style.display = upiOk ? 'none' : 'block';
+    valid = upiOk;
+  }
+
+  if (!valid) {
+    showBanner('payBannerMsg', 'Please check the highlighted payment details.');
+    return;
+  }
+
+  const ev = events.find(e => e.id === payState.eventId);
+  if (!ev || (ev.capacity - ev.booked) < payState.qty) {
+    showBanner('payBannerMsg', 'Not enough tickets left for this quantity.');
+    return;
+  }
+
+  document.getElementById('payStepForm').classList.add('hidden');
+  document.getElementById('payStepProcessing').classList.remove('hidden');
+
+  setTimeout(() => {
+    ev.booked += payState.qty;
+    const amount = ev.price * payState.qty;
+    const booking = {
+      id: bookingIdCounter++,
+      userEmail: currentUser.email,
+      eventId: ev.id,
+      seats: payState.qty,
+      amount: amount,
+      status: 'confirmed',
+      paymentMethod: payState.method === 'card' ? 'Card' : 'UPI',
+      date: new Date().toLocaleDateString()
+    };
+    bookings.push(booking);
+
+    document.getElementById('payStepProcessing').classList.add('hidden');
+    document.getElementById('payStepSuccess').classList.remove('hidden');
+    document.getElementById('successSummary').textContent =
+      `${payState.qty} ticket(s) for ${ev.name} · ₹${amount} paid via ${booking.paymentMethod}`;
+  }, 1400);
+}
+
+function renderBookings(){
+  const list = document.getElementById('bookingsList');
+  const mine = bookings.filter(b => b.userEmail === currentUser.email);
+  if (mine.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="big">🎟️</div>No bookings yet — browse events to get started.</div>`;
+    return;
+  }
+  list.innerHTML = mine.map(b => {
+    const ev = events.find(e => e.id === b.eventId);
+    return `
+      <div class="booking-row">
+        <div>
+          <b>${ev ? ev.name : 'Event removed'}</b>
+          <div class="meta">${ev ? ev.area + ' · ' + ev.date : ''} · ${b.seats} ticket(s) · ₹${b.amount} via ${b.paymentMethod || 'Card'} · Booked ${b.date}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="status-tag status-${b.status}">${b.status.toUpperCase()}</span>
+          ${b.status === 'confirmed' ? `<button class="cancel-btn" onclick="cancelBooking(${b.id})">Cancel</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function cancelBooking(bookingId){
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b || b.status !== 'confirmed') return;
+  b.status = 'cancelled';
+  const ev = events.find(e => e.id === b.eventId);
+  if (ev) ev.booked = Math.max(0, ev.booked - (b.seats || 1));
+  showToast('Booking cancelled', false);
+  renderBookings();
+}
+
+/* ================= MODULE 3: ADMIN DASHBOARD ================= */
+function renderDashboard(){
+  const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
+  const totalRevenue = confirmedBookings.reduce((sum,b) => sum + b.amount, 0);
+  const avgFill = Math.round(events.reduce((sum,e) => sum + (e.booked/e.capacity), 0) / events.length * 100);
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi"><span>Total events</span><b class="cyan">${events.length}</b></div>
+    <div class="kpi"><span>Confirmed bookings</span><b class="magenta">${confirmedBookings.length}</b></div>
+    <div class="kpi"><span>Revenue</span><b class="amber">₹${totalRevenue.toLocaleString()}</b></div>
+    <div class="kpi"><span>Avg fill rate</span><b class="cyan">${avgFill}%</b></div>
+  `;
+
+  const maxBooked = Math.max(1, ...events.map(e => e.booked));
+  document.getElementById('chartArea').innerHTML = events.map(ev => `
+    <div class="chart-row">
+      <div class="chart-label">${ev.name}</div>
+      <div class="chart-track"><div class="chart-fill" style="width:${(ev.booked/maxBooked)*100}%"></div></div>
+      <div class="chart-val">${ev.booked}</div>
+    </div>
+  `).join('');
+}
+
+function renderProfits(){
+  const confirmed = bookings.filter(b => b.status === 'confirmed');
+  const cancelled = bookings.filter(b => b.status === 'cancelled');
+  const totalRevenue = confirmed.reduce((sum,b) => sum + b.amount, 0);
+  const lostRevenue = cancelled.reduce((sum,b) => sum + b.amount, 0);
+  const avgOrderValue = confirmed.length ? Math.round(totalRevenue / confirmed.length) : 0;
+
+  document.getElementById('profitGrid').innerHTML = `
+    <div class="kpi"><span>Net profit</span><b class="amber">₹${totalRevenue.toLocaleString()}</b></div>
+    <div class="kpi"><span>Orders (confirmed)</span><b class="magenta">${confirmed.length}</b></div>
+    <div class="kpi"><span>Avg order value</span><b class="cyan">₹${avgOrderValue.toLocaleString()}</b></div>
+    <div class="kpi"><span>Lost to cancellations</span><b class="magenta">₹${lostRevenue.toLocaleString()}</b></div>
+  `;
+}
+
+/* ================= MODULE 3: MANAGE EVENTS ================= */
+function toggleAddForm(){
+  document.getElementById('addEventForm').classList.toggle('show');
+}
+
+function addEvent(){
+  const name = document.getElementById('newEvName').value.trim();
+  const area = document.getElementById('newEvArea').value.trim();
+  const date = document.getElementById('newEvDate').value.trim();
+  const time = document.getElementById('newEvTime').value.trim();
+  const price = parseInt(document.getElementById('newEvPrice').value);
+  const cap = parseInt(document.getElementById('newEvCap').value);
+  const category = document.getElementById('newEvCategory').value || 'other';
+
+  if (!name || !area || !date || !time || !price || !cap) {
+    showToast('Fill in all fields to add an event', true);
+    return;
+  }
+
+  events.push({ id: Date.now(), name, area, date, time, price, capacity: cap, booked: 0, category });
+  ['newEvName','newEvArea','newEvDate','newEvTime','newEvPrice','newEvCap'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('newEvCategory').value = 'other';
+  document.getElementById('addEventForm').classList.remove('show');
+  showToast('Event added: ' + name, false);
+  renderManage();
+}
+
+function deleteEvent(id){
+  events = events.filter(e => e.id !== id);
+  showToast('Event removed', false);
+  renderManage();
+}
+
+function renderManage(){
+  const tbody = document.getElementById('eventsTableBody');
+  tbody.innerHTML = events.map(ev => `
+    <tr>
+      <td>${ev.name}</td>
+      <td>${ev.area}</td>
+      <td>${ev.date}</td>
+      <td>₹${ev.price}</td>
+      <td>${ev.booked} / ${ev.capacity}</td>
+      <td><button class="icon-btn danger" onclick="deleteEvent(${ev.id})">Delete</button></td>
+    </tr>
+  `).join('');
+}
+
+/* ================= MODULE 3: REPORTS ================= */
+function populateReportFilters(){
+  const sel = document.getElementById('reportEventFilter');
+  sel.innerHTML = '<option value="all">All events</option>' +
+    events.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+}
+
+function renderReports(){
+  populateReportFilters();
+  const statusFilter = document.getElementById('reportStatusFilter').value;
+  const eventFilter = document.getElementById('reportEventFilter').value;
+
+  let rows = bookings.filter(b => {
+    if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+    if (eventFilter !== 'all' && String(b.eventId) !== eventFilter) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('reportsTableBody');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--paper-dim); padding:24px;">No bookings match these filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(b => {
+    const ev = events.find(e => e.id === b.eventId);
+    const userAcc = accounts[b.userEmail];
+    return `
+      <tr>
+        <td>#${String(b.id).padStart(4,'0')}</td>
+        <td>${userAcc ? userAcc.name : b.userEmail}</td>
+        <td>${ev ? ev.name : '—'}</td>
+        <td>${b.seats}</td>
+        <td>₹${b.amount}</td>
+        <td><span class="status-tag status-${b.status}">${b.status.toUpperCase()}</span></td>
+        <td>${b.date}</td>
+      </tr>`;
+  }).join('');
+}
+
+function exportCSV(){
+  const header = ['Booking ID','User','Event','Seats','Amount','Status','Date'];
+  const rows = bookings.map(b => {
+    const ev = events.find(e => e.id === b.eventId);
+    const userAcc = accounts[b.userEmail];
+    return [
+      '#' + String(b.id).padStart(4,'0'),
+      userAcc ? userAcc.name : b.userEmail,
+      ev ? ev.name : '',
+      b.seats, b.amount, b.status, b.date
+    ];
+  });
+  const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'eventhub-bookings-report.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded', false);
+}
+</script>
+</body>
+</html>
